@@ -1,0 +1,10 @@
+# code: language=yaml
+---
+provision_user: ansible
+ansible_connection: ssh
+ansible_ssh_user: "{{ provision_user }}"
+ansible_ssh_private_key_file: ~/.ssh/tpi.ansible.key
+host_domain: local
+host_fqdn: "{{ inventory_hostname }}.{{ host_domain }}"
+
+certificates: []

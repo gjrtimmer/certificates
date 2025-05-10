@@ -1,0 +1,16 @@
+# code: language=ansible
+- name: Check Intermediate CA exists
+  when: cert.enabled
+  delegate_to: localhost
+  ansible.builtin.stat:
+    path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt"
+  register: crt_intermediate_exists
+
+- name: Generate Intermediate CA
+  when: cert.enabled and not crt_intermediate_exists.stat.exists | bool
+  ansible.builtin.include_tasks:
+    file: intermediate/generate.yml
+  args:
+    apply:
+      run_once: true
+      delegate_to: localhost

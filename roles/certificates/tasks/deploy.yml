@@ -1,0 +1,51 @@
+# code: language=ansible
+- name: Create Certificate Target Directory
+  ansible.builtin.file:
+    path: "{{ elm.1.dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ [cert.item] | product(cert.item.server.deploy.target) | list }}"
+  loop_control:
+    loop_var: elm
+
+- name: Copy Certificate (Public-Key) to Target
+  ansible.builtin.copy:
+    src: "{{ config.dir.local }}/certs/{{ elm.0.server.commonNameSlug }}/{{ elm.0.server.commonNameSlug }}.crt"
+    dest: "{{ elm.1.dir }}/{{ elm.0.server.commonNameSlug }}.crt"
+    mode: "0644"
+  loop: "{{ [cert.item] | product(cert.item.server.deploy.target) | list }}"
+  loop_control:
+    loop_var: elm
+
+- name: Copy Certificate (Private-Key) to Target
+  ansible.builtin.copy:
+    src: "{{ config.dir.local }}/certs/{{ elm.0.server.commonNameSlug }}/{{ elm.0.server.commonNameSlug }}.key"
+    dest: "{{ elm.1.dir }}/{{ elm.0.server.commonNameSlug }}.key"
+    mode: "0644"
+  loop: "{{ [cert.item] | product(cert.item.server.deploy.target) | list }}"
+  loop_control:
+    loop_var: elm
+
+- name: Create Certificate Alias (Public-Key)
+  when: elm.1.alias is defined and elm.1.alias | length > 0
+  ansible.builtin.file:
+    src: "{{ elm.0.server.commonNameSlug }}.crt"
+    path: "{{ elm.1.dir }}/{{ elm.1.alias }}.crt"
+    state: link
+    force: true
+  loop: "{{ [cert.item] | product(cert.item.server.deploy.target) | list }}"
+  loop_control:
+    loop_var: elm
+
+- name: Create Certificate Alias (Private-Key)
+  when: elm.1.alias is defined and elm.1.alias | length > 0
+  ansible.builtin.file:
+    src: "{{ elm.0.server.commonNameSlug }}.key"
+    path: "{{ elm.1.dir }}/{{ elm.1.alias }}.key"
+    state: link
+    force: true
+  loop: "{{ [cert.item] | product(cert.item.server.deploy.target) | list }}"
+  loop_control:
+    loop_var: elm

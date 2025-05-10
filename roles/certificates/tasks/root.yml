@@ -1,0 +1,82 @@
+# code: language=ansible
+- name: Create Structure
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: "{{ item.type }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - path: "{{ config.dir.local }}/certs"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/private"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/newcerts"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/crl"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/index.txt"
+      type: touch
+      mode: "0755"
+
+- name: Create Serial
+  ansible.builtin.copy:
+    dest: "{{ config.dir.local }}/serial"
+    content: "{{ config.root.serial }}"
+    mode: "0755"
+
+- name: Copy Root CA Config
+  ansible.builtin.template:
+    src: ca.cnf.j2
+    dest: "{{ config.dir.local }}/ca.cnf"
+    force: true
+    mode: "0755"
+
+- name: Generate Root CA Private Key
+  ansible.builtin.shell:
+    cmd: "openssl genrsa -out {{ config.dir.local }}/private/root.key {{ config.root.bitsize }}"
+    executable: /bin/bash
+  changed_when: false
+
+- name: Generate Root CA Certificate
+  throttle: 1
+  vars:
+    subject: |-
+      {{ '/C=' + (config.root.countryName | default(config.info.countryName | default('', true))) }}
+      {{ '/ST=' + (config.root.stateOrProvinceName | default(config.info.stateOrProvinceName | default('', true))) }}
+      {{ '/L=' + (config.root.localityName | default(config.info.localityName | default('', true))) }}
+      {{ '/O=' + (config.root.organizationName | default(config.info.organizationName | default('', true))) }}
+      {{ '/OU=' + (config.root.organizationalUnitName | default(config.info.organizationalUnitName | default('', true))) }}
+      {{ '/emailAddress=' + (config.root.emailAddress | default(config.info.emailAddress | default('', true))) }}
+      /CN={{ config.root.commonName }}
+    command: >
+      openssl req
+      -config {{ config.dir.local }}/ca.cnf
+      -key {{ config.dir.local }}/private/root.key
+      -new
+      -x509
+      -days {{ config.root.days }}
+      -sha256
+      -extensions v3_ca
+      -batch
+      -out {{ config.dir.local }}/certs/root.crt
+      -subj "{{ subject | split('\n') | join('') | string }}"
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && {{ command | split('\n') | join('') | string }}"
+    executable: /bin/bash
+  changed_when: false
+
+- name: Set File Permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: "{{ item.type }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - path: "{{ config.dir.local }}/private/root.key"
+      type: file
+      mode: "0644"
+    - path: "{{ config.dir.local }}/certs/root.crt"
+      type: file
+      mode: "0644"

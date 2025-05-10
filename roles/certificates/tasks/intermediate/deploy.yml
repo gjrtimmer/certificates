@@ -1,0 +1,28 @@
+# code: language=ansible
+- name: Copy Intermediate CAs
+  when: cert.enabled and (inventory_hostname in elm.hosts or elm.hosts in ['all', 'self'])
+  ansible.builtin.copy:
+    src: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt"
+    dest: "{{ elm.dir }}/{{ elm.name }}.crt"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ cert.target }}"
+  loop_control:
+    loop_var: elm
+
+- name: Copy Chain Certificate
+  when: cert.enabled
+  ansible.builtin.copy:
+    src: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/chain.crt"
+    dest: "{{ certificate.dir.remote }}/ca/chain_{{ cert.name }}.crt"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Link Intermediate Certificate
+  when: cert.enabled
+  ansible.builtin.file:
+    src: "{{ config.dir.remote }}/ca/{{ cert.name }}.crt"
+    dest: /usr/local/share/ca-certificates/{{ config.info.organizationName }}_{{ cert.info.commonNameSlug }}.crt
+    state: link

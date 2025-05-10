@@ -1,0 +1,47 @@
+# code: language=ansible
+- name: Server Certificate Clean
+  ansible.builtin.file:
+    path: "{{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}"
+    state: "absent"
+
+- name: Get Certificate ID From Root CA Index # noqa: risky-shell-pipe
+  when: not config.intermediate.enabled
+  ansible.builtin.shell:
+    cmd: "cat {{ config.dir.local }}/index.txt | grep '{{ cert.item.server.commonName }}' | awk '{print $3}'"
+    executable: /bin/bash
+  register: crt_index
+  changed_when: false
+
+- name: Remove Certificate From Root NewCerts
+  when: not config.intermediate.enabled
+  ansible.builtin.file:
+    path: "{{ config.dir.local }}/newcerts/{{ crt_index.stdout }}.pem"
+    state: absent
+
+- name: Rewrite Root CA Index
+  when: not config.intermediate.enabled
+  ansible.builtin.lineinfile:
+    name: "{{ config.dir.local }}/index.txt"
+    regexp: "{{ cert.item.server.commonName | regex_replace('\\*', '\\\\*') }}"
+    state: absent
+
+- name: Get Certificate ID From Intermediate CA Index # noqa: risky-shell-pipe
+  when: config.intermediate.enabled
+  ansible.builtin.shell:
+    cmd: "cat {{ config.dir.local }}/intermediate/index.txt | grep '{{ cert.item.server.commonName }}' | awk '{print $3}'"
+    executable: /bin/bash
+  register: crt_index
+  changed_when: false
+
+- name: Remove Certificate From Intermediate NewCerts
+  when: config.intermediate.enabled
+  ansible.builtin.file:
+    path: "{{ config.dir.local }}/intermediate/newcerts/{{ crt_index.stdout }}.pem"
+    state: absent
+
+- name: Rewrite Intermediate CA Index
+  when: config.intermediate.enabled
+  ansible.builtin.lineinfile:
+    name: "{{ config.dir.local }}/intermediate/index.txt"
+    regexp: "{{ cert.item.server.commonName | regex_replace('\\*', '\\\\*') }}"
+    state: absent

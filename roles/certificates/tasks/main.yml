@@ -1,0 +1,157 @@
+# code: language=ansible
+- name: Initialize
+  delegate_to: localhost
+  block:
+    - name: Read Defaults Global
+      ansible.builtin.include_vars:
+        file: "{{ playbook_dir }}/config/defaults.yml"
+        name: cert_global_defaults
+
+    - name: Read Certificate Configuration
+      ansible.builtin.include_vars:
+        file: "{{ item }}"
+        name: "incl_vars_{{ item | basename | splitext | first }}"
+      with_fileglob:
+        - "{{ playbook_dir }}/config/*.yml"
+
+    - name: Convert Certificates (Global)
+      ansible.builtin.set_fact:
+        crt_global_lst: "{{ crt_global_lst | default([]) + lookup('vars', item).certificates | default([]) }}"
+      loop: "{{ query('varnames', '^incl_vars_(.*)$') }}"
+
+    - name: Convert Certificate (Global)
+      ansible.builtin.set_fact:
+        crt_global_lst_srv: "{{ crt_global_lst_srv | default([]) + [{'server': item}] }}"
+      loop: "{{ crt_global_lst }}"
+
+    - name: Convert Certificate (Nodes)
+      when: inventory_hostname != 'localhost'
+      ansible.builtin.set_fact:
+        crt_node_lst: "{{ crt_node_lst | default([]) + [{'server': item}] }}"
+      loop: "{{ certificates }}"
+
+    - name: Build Configuration
+      ansible.builtin.set_fact:
+        config: "{{ certificate | combine(cert_global_defaults.certificate, recursive=True) }}"
+
+    - name: Build Certificate Lists
+      ansible.builtin.set_fact:
+        certs_global: "{{ crt_global_lst_srv | apply_defaults(config) }}"
+        certs_nodes: "{{ crt_node_lst | default({}) | apply_defaults(config) }}"
+
+    - name: Create Certificate Root Directory
+      ansible.builtin.file:
+        path: "{{ config.dir.local }}"
+        state: directory
+        mode: "0755"
+
+- name: Generate Root CA
+  delegate_to: localhost
+  run_once: true
+  block:
+    - name: Check Root CA exists
+      ansible.builtin.stat:
+        path: "{{ config.dir.local }}/certs/root.crt"
+      register: crt_root_exists
+
+    - name: Generate Root CA
+      ansible.builtin.include_tasks:
+        file: root.yml
+      when: not crt_root_exists.stat.exists
+
+- name: Generate Intermediate
+  ansible.builtin.include_tasks:
+    file: intermediate/check.yml
+  args:
+    apply:
+      run_once: true
+      delegate_to: localhost
+  loop: "{{ config.intermediate }}"
+  loop_control:
+    loop_var: cert
+
+- name: Generate Certificates (Global)
+  ansible.builtin.import_tasks:
+    file: certs-global.yml
+
+- name: Generate Certificates (Nodes)
+  ansible.builtin.import_tasks:
+    file: certs-nodes.yml
+
+- name: Reset Certificate Directory
+  tags: ["reset"]
+  when: "'reset' in ansible_run_tags"
+  ansible.builtin.file:
+    path: "{{ config.dir.remote }}"
+    state: absent
+
+- name: Deploy Certificates
+  when: inventory_hostname != 'localhost'
+  become: true
+  block:
+    - name: Ensure Root CA Targets
+      when: inventory_hostname in elm.hosts or elm.hosts in ['all', 'self']
+      ansible.builtin.file:
+        path: "{{ elm.dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop: "{{ config.root.target }}"
+      loop_control:
+        loop_var: elm
+
+    - name: Copy Root CA to Targets
+      when: inventory_hostname in elm.hosts or elm.hosts in ['all', 'self']
+      ansible.builtin.copy:
+        src: "{{ config.dir.local }}/certs/root.crt"
+        dest: "{{ elm.dir }}/{{ elm.name }}.crt"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ config.root.target }}"
+      loop_control:
+        loop_var: elm
+
+    - name: Copy Intermediate Certificates
+      ansible.builtin.include_tasks:
+        file: intermediate/deploy.yml
+      loop: "{{ config.intermediate }}"
+      loop_control:
+        loop_var: cert
+
+    - name: Create CA Chain
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          cat {{ config.dir.remote }}/ca/root.crt $(ls {{ config.dir.remote }}/ca/*.crt | grep -v 'chain*' | grep -v 'root.crt') > {{ config.dir.remote }}/ca/chain.crt
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Link Root CA
+      ansible.builtin.file:
+        src: "{{ config.dir.remote }}/ca/root.crt"
+        dest: "/usr/local/share/ca-certificates/{{ config.info.organizationName }}_{{ config.root.commonNameSlug }}.crt"
+        state: link
+
+    - name: Update CA Certificates
+      ansible.builtin.shell:
+        cmd: /usr/sbin/update-ca-certificates --fresh
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Deploy Certificates (Global)
+      when: inventory_hostname in cert.item.server.deploy.hosts or cert.item.server.deploy.hosts in ['all', 'self']
+      ansible.builtin.include_tasks:
+        file: deploy.yml
+      loop: "{{ crt_global.results }}"
+      loop_control:
+        loop_var: cert
+
+    - name: Deploy Certificates (Nodes)
+      when: inventory_hostname in cert.item.server.deploy.hosts or cert.item.server.deploy.hosts in ['all', 'self']
+      ansible.builtin.include_tasks:
+        file: deploy.yml
+      loop: "{{ crt_nodes.results }}"
+      loop_control:
+        loop_var: cert

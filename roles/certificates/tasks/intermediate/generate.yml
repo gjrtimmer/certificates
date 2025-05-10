@@ -1,0 +1,121 @@
+# code: language=ansible
+- name: Initialize
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: "{{ item.type }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/csr"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/private"
+      type: directory
+      mode: "0700"
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/newcerts"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/crl"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/index.txt"
+      type: touch
+      mode: "0755"
+
+- name: Create Serial
+  ansible.builtin.copy:
+    dest: "{{ config.dir.local }}/intermediate/{{ cert.name }}/serial"
+    content: "{{ cert.serial }}"
+    mode: "0755"
+
+- name: Copy Intermediate CA Config
+  ansible.builtin.template:
+    src: intermediate.cnf.j2
+    dest: "{{ config.dir.local }}/intermediate/{{ cert.name }}/intermediate.cnf"
+    force: true
+    mode: "0755"
+
+- name: Generate Intermediate CA Private Key
+  ansible.builtin.shell:
+    cmd: "openssl genrsa -out {{ config.dir.local }}/intermediate/{{ cert.name }}/private/{{ cert.name }}.key {{ cert.bitsize }}"
+    executable: /bin/bash
+  changed_when: false
+
+- name: Generate Intermediate CSR
+  vars:
+    subject: |-
+      {{ '/C=' + (item.info.countryName | default(config.info.countryName | default('', true))) }}
+      {{ '/ST=' + (item.info.stateOrProvinceName | default(config.info.stateOrProvinceName | default('', true))) }}
+      {{ '/L=' + (item.info.localityName | default(config.info.localityName | default('', true))) }}
+      {{ '/O=' + (item.info.organizationName | default(config.info.organizationName | default('', true))) }}
+      {{ '/OU=' + (item.info.organizationalUnitName | default(config.info.organizationalUnitName | default('', true))) }}
+      {{ '/emailAddress=' + (item.info.emailAddress | default(config.info.emailAddress | default('', true))) }}
+      /CN={{ cert.info.commonName }}
+    command: >
+      openssl req
+      -config {{ config.dir.local }}/intermediate/{{ cert.name }}/intermediate.cnf
+      -new
+      -sha256
+      -batch
+      -key {{ config.dir.local }}/intermediate/{{ cert.name }}/private/{{ cert.name }}.key
+      -out {{ config.dir.local }}/intermediate/{{ cert.name }}/csr/{{ cert.name }}.csr
+      -subj "{{ subject | split('\n') | join('') | string }}"
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && {{ command | split('\n') | join('') | string }}"
+    executable: /bin/bash
+  changed_when: false
+
+- name: Sign Intermediate CA
+  throttle: 1
+  vars:
+    command: >
+      openssl ca
+      -config "{{ config.dir.local }}/ca.cnf"
+      -extensions v3_intermediate_ca
+      -days {{ cert.days }}
+      -notext
+      -md sha256
+      -batch
+      -in {{ config.dir.local }}/intermediate/{{ cert.name }}/csr/{{ cert.name }}.csr
+      -out {{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && {{ command | split('\n') | join('') | string }}"
+    executable: /bin/bash
+  changed_when: false
+  register: sign_csr
+
+- name: Create CA Chain
+  ansible.builtin.shell:
+    cmd: cat {{ config.dir.local }}/certs/root.crt {{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt > {{ config.dir.local }}/intermediate/{{ cert.name }}/certs/chain.crt
+    executable: /bin/bash
+  changed_when: false
+
+- name: Set File Permissions
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: "{{ item.type }}"
+    mode: "{{ item.mode }}"
+  with_items:
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/private/{{ cert.name }}.key"
+      type: file
+      mode: "0644"
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt"
+      type: file
+      mode: "0644"
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/chain.crt"
+      type: file
+      mode: "0644"
+
+- name: Verify Intermediate CA Cert
+  ansible.builtin.shell:
+    cmd: openssl verify -CAfile {{ config.dir.local }}/certs/root.crt {{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt
+    executable: /bin/bash
+  changed_when: false
+  register: intermediate_verify
+
+- name: Unverified Intermediate CA
+  ansible.builtin.fail:
+    msg: "Intermediate CA verification failed"
+  when: intermediate_verify.stdout.find('OK') == -1

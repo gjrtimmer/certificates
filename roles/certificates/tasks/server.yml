@@ -1,0 +1,170 @@
+# code: language=ansible
+- name: Initialize
+  ansible.builtin.file:
+    path: "{{ elm.path }}"
+    state: "{{ elm.type }}"
+    mode: "{{ elm.mode }}"
+  loop:
+    - path: "{{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/intermediate/newcerts"
+      type: directory
+      mode: "0755"
+    - path: "{{ config.dir.local }}/newcerts"
+      type: directory
+      mode: "0755"
+  loop_control:
+    loop_var: elm
+
+- name: Generate Server Certificate Private Key
+  ansible.builtin.shell:
+    cmd: "openssl genrsa -out {{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.key {{ cert.item.server.bitsize }}"
+    executable: /bin/bash
+  changed_when: false
+
+- name: Get Signing Certificate Name
+  ansible.builtin.set_fact:
+    signing_cert: "{{ cert.item.server.sign }}"
+
+- name: Set SSL Config (Root CA)
+  when: signing_cert == "root"
+  ansible.builtin.set_fact:
+    sslcfg: ca.cnf
+  changed_when: false
+
+- name: Set SSL Config (Intermediate CA)
+  when: signing_cert != "root"
+  ansible.builtin.set_fact:
+    sslcfg: "intermediate/{{ signing_cert }}/intermediate.cnf"
+  changed_when: false
+
+- name: Create Node Config
+  ansible.builtin.copy:
+    src: "{{ config.dir.local }}/{{ sslcfg }}"
+    dest: "{{ config.dir.local }}/{{ sslcfg }}.{{ inventory_hostname }}"
+    remote_src: true
+    mode: "0755"
+  changed_when: false
+
+- name: Update Config Location
+  ansible.builtin.set_fact:
+    sslcfg: "{{ sslcfg }}.{{ inventory_hostname }}"
+
+- name: Configure Server Certificate
+  block:
+    - name: Configure Certificate SAN Config
+      ansible.builtin.lineinfile:
+        path: "{{ config.dir.local }}/{{ sslcfg }}"
+        line: "{{ elm }}"
+      loop:
+        - "subjectAltName = @alt_names"
+        - "[ alt_names ]"
+      loop_control:
+        loop_var: elm
+
+    - name: Configure Certificate SAN DNS
+      ansible.builtin.lineinfile:
+        path: "{{ config.dir.local }}/{{ sslcfg }}"
+        line: "DNS.{{ idx }}={{ elm }}"
+      loop: "{{ [cert.item.server.commonName] + cert.item.server.san.dns }}"
+      loop_control:
+        loop_var: elm
+        index_var: idx
+
+    - name: Configure Certificate SAN IP
+      ansible.builtin.lineinfile:
+        path: "{{ config.dir.local }}/{{ sslcfg }}"
+        line: "IP.{{ idx }}={{ elm }}"
+      loop: "{{ cert.item.server.san.ip }}"
+      loop_control:
+        loop_var: elm
+        index_var: idx
+
+    - name: Generate Server Certificate CSR
+      vars:
+        subject: |-
+          {{ '/C=' + (cert.item.server.countryName | default(cert.item.info.countryName | default('', true))) }}
+          {{ '/ST=' + (cert.item.server.stateOrProvinceName | default(cert.item.info.stateOrProvinceName | default('', true))) }}
+          {{ '/L=' + (cert.item.server.localityName | default(cert.item.info.localityName | default('', true))) }}
+          {{ '/O=' + (cert.item.server.organizationName | default(cert.item.info.organizationName | default('', true))) }}
+          {{ '/OU=' + (cert.item.server.organizationalUnitName | default(cert.item.info.organizationalUnitName | default('', true))) }}
+          {{ '/emailAddress=' + (cert.item.server.emailAddress | default(cert.item.info.emailAddress | default('', true))) }}
+          /CN={{ cert.item.server.commonName }}
+        command: >
+          openssl req
+          -config {{ config.dir.local }}/{{ sslcfg }}
+          -new
+          -sha256
+          -key {{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.key
+          -out {{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.csr
+          -subj "{{ subject | split('\n') | join('') | string }}"
+      ansible.builtin.shell:
+        cmd: "set -o pipefail && {{ command | split('\n') | join('') | string }}"
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Sign Server Certificate
+      throttle: 1
+      vars:
+        command: >
+          openssl ca
+          -config {{ config.dir.local }}/{{ sslcfg }}
+          -extensions {{ cert.item.server.extensions }}
+          -days {{ cert.item.server.days }}
+          -notext
+          -md sha256
+          -batch
+          -in {{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.csr
+          -out {{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.crt
+      ansible.builtin.shell:
+        cmd: "set -o pipefail && {{ command | split('\n') | join('') | string }}"
+        executable: /bin/bash
+      changed_when: false
+
+    - name: "Fix Permissions"
+      ansible.builtin.file:
+        path: "{{ elm.path }}"
+        state: "{{ elm.type }}"
+        mode: "{{ elm.mode }}"
+      loop:
+        - path: "{{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.key"
+          type: file
+          mode: "0777"
+        - path: "{{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.crt"
+          type: file
+          mode: "0777"
+      loop_control:
+        loop_var: elm
+
+  always:
+    - name: Remove Node Config
+      ansible.builtin.file:
+        path: "{{ config.dir.local }}/{{ sslcfg }}"
+        state: absent
+
+    - name: "Verify Server Certificate Against Chain"
+      ansible.builtin.shell:
+        cmd: "openssl verify -CAfile {{ config.dir.local }}/intermediate/{{ signing_cert }}/certs/chain.crt {{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.crt"
+        executable: /bin/bash
+      changed_when: false
+      register: crt_server_verify
+      when: signing_cert != "root"
+
+    - name: "Server Certificate Chain Verification Failure"
+      ansible.builtin.fail:
+        msg: "Server Certificate => Chain Verification Failed"
+      when: signing_cert != "root" and crt_server_verify.stdout.find('OK') == -1
+
+    - name: "Verify Server Certificate Against Root CA"
+      ansible.builtin.shell:
+        cmd: "openssl verify -CAfile {{ config.dir.local }}/certs/root.crt {{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.crt"
+        executable: /bin/bash
+      changed_when: false
+      register: crt_server_verify
+      when: signing_cert == "root"
+
+    - name: "Server Certificate Root CA Verification Failure"
+      ansible.builtin.fail:
+        msg: "Server Certificate => Root CA Verification Failed"
+      when: signing_cert == "root" and crt_server_verify.stdout.find('OK') == -1

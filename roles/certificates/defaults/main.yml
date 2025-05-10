@@ -1,0 +1,31 @@
+# code: language=yaml
+certificate:
+  dir:
+    local: ./certs
+    remote: /cluster/certs
+  overwrite: false
+  root:
+    commonName: Root CA
+    commonNameSlug: Root_CA
+    days: 3650
+    bitsize: 4096
+    serial: 1000
+  intermediate: []
+  server:
+    deploy:
+      hosts: all
+    extensions: server_cert
+    commonName: Node
+    bitsize: 2048
+    days: 3650
+    san:
+      enabled: true
+      dns: []
+      ip: []
+  info:
+    countryName: NL
+    stateOrProvinceName: Province
+    localityName: City
+    organizationName: Local
+    organizationalUnitName:
+    emailAddress: user@domain

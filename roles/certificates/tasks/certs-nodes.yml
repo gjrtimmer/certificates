@@ -1,0 +1,31 @@
+# code: language=ansible
+- name: Generate Global Certificates
+  when: inventory_hostname != 'localhost'
+  delegate_to: localhost
+  block:
+    - name: Server CN Slug (Nodes)
+      ansible.builtin.set_fact:
+        certificates_nodes: "{{ certificates_nodes | default([]) + [item | combine({'server': {'commonNameSlug': item.server.commonName | regex_replace('^\\*', 'wild')}}, recursive=True)] | list }}"
+      loop: "{{ certs_nodes }}"
+
+    - name: Check Certificate Exists (Nodes)
+      ansible.builtin.stat:
+        path: "{{ config.dir.local }}/certs/{{ item.server.commonNameSlug }}"
+      register: crt_nodes
+      loop: "{{ certificates_nodes }}"
+
+    - name: Overwrite (Nodes)
+      when: config.overwrite and cert.stat.exists
+      ansible.builtin.include_tasks:
+        file: overwrite.yml
+      loop: "{{ crt_nodes.results }}"
+      loop_control:
+        loop_var: cert
+
+    - name: Generate Certificates (Nodes)
+      when: (not cert.stat.exists) or config.overwrite
+      ansible.builtin.include_tasks:
+        file: server.yml
+      loop: "{{ crt_nodes.results }}"
+      loop_control:
+        loop_var: cert

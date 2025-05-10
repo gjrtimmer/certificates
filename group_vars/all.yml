@@ -8,3 +8,20 @@ host_domain: local
 host_fqdn: "{{ inventory_hostname }}.{{ host_domain }}"
 
 certificates: []
+# certificates:
+#   - commonName: "*.{{ inventory_hostname }}.{{ host_domain }}"
+#     deploy:
+#       hosts: "{{ inventory_hostname }}"
+#       target:
+#         - dir: "{{ certificate.dir.remote }}/node"
+#           alias: node
+#     san:
+#       enabled: true
+#       dns:
+#         - "{{ inventory_hostname }}.{{ host_domain }}"
+#         - "{{ inventory_hostname }}"
+#         - localhost
+#       ip:
+#         - "{{ ansible_host }}"
+#         - 127.0.0.1
+

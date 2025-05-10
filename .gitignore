@@ -2,6 +2,9 @@ certs/*
 !certs/.keep
 config/*
 !config/.keep
+!config/defaults.yml
+host_vars/*
+!host_vars/.keep
 
 __pycache__
 .DS_Store

@@ -86,7 +86,11 @@
     state: absent
 
 - name: Deploy Certificates
-  when: inventory_hostname != 'localhost'
+  when: >
+    inventory_hostname != 'localhost'
+    and
+    'deploy' in ansible_run_tags
+  tags: [deploy]
   become: true
   block:
     - name: Ensure Root CA Targets

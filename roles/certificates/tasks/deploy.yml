@@ -1,5 +1,6 @@
 # code: language=ansible
 - name: Create Certificate Target Directory
+  tags: [deploy]
   ansible.builtin.file:
     path: "{{ elm.1.dir }}"
     state: directory
@@ -11,6 +12,7 @@
     loop_var: elm
 
 - name: Copy Certificate (Public-Key) to Target
+  tags: [deploy]
   ansible.builtin.copy:
     src: "{{ config.dir.local }}/certs/{{ elm.0.server.commonNameSlug }}/{{ elm.0.server.commonNameSlug }}.crt"
     dest: "{{ elm.1.dir }}/{{ elm.0.server.commonNameSlug }}.crt"
@@ -20,6 +22,7 @@
     loop_var: elm
 
 - name: Copy Certificate (Private-Key) to Target
+  tags: [deploy]
   ansible.builtin.copy:
     src: "{{ config.dir.local }}/certs/{{ elm.0.server.commonNameSlug }}/{{ elm.0.server.commonNameSlug }}.key"
     dest: "{{ elm.1.dir }}/{{ elm.0.server.commonNameSlug }}.key"
@@ -29,6 +32,7 @@
     loop_var: elm
 
 - name: Create Certificate Alias (Public-Key)
+  tags: [deploy]
   when: elm.1.alias is defined and elm.1.alias | length > 0
   ansible.builtin.file:
     src: "{{ elm.0.server.commonNameSlug }}.crt"
@@ -40,6 +44,7 @@
     loop_var: elm
 
 - name: Create Certificate Alias (Private-Key)
+  tags: [deploy]
   when: elm.1.alias is defined and elm.1.alias | length > 0
   ansible.builtin.file:
     src: "{{ elm.0.server.commonNameSlug }}.key"

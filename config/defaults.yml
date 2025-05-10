@@ -1,0 +1,37 @@
+---
+certificate:
+  root:
+    target:
+      - dir: "{{ certificate.dir.remote }}/ca"
+        name: root
+        hosts: all
+  intermediate:
+    - enabled: true
+      bitsize: 4096
+      serial: 1000
+      days: 3650
+      target:
+        - dir: "{{ certificate.dir.remote }}/ca"
+          name: local
+          hosts: all
+      info:
+        commonName: Local CA
+        commonNameSlug: Local_CA
+      name: local
+    - enabled: true
+      bitsize: 4096
+      serial: 1000
+      days: 3650
+      target:
+        - dir: "{{ certificate.dir.remote }}/ca"
+          name: k3s
+          hosts: all
+      info:
+        commonName: K3s CA
+        commonNameSlug: K3S_CA
+      name: k3s
+  chain:
+    target:
+      - dir: "{{ certificate.dir.remote }}/ca"
+        name: chain
+        hosts: all

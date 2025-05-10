@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-ansible-playbook -l nodes certs.yml
+ansible-playbook -l all certs.yml

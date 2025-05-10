@@ -1,0 +1,11 @@
+# .ansible-lint
+exclude_paths:
+  - .vscode/
+# skip_list:
+kinds:
+  - playbook: "playbooks/*.{yml,yaml}"
+  - playbook: "playbooks/configure/*.{yml,yaml}"
+
+skip_list:
+  - yaml[line-length]
+  - var-naming[no-role-prefix]

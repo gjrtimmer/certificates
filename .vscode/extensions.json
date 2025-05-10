@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "redhat.ansible",
+    "redhat.vscode-yaml",
+    "dhoeric.ansible-vault",
+    "aaron-bond.better-comments",
+    "yzhang.markdown-all-in-one",
+    "DavidAnson.vscode-markdownlint",
+    "PKief.material-icon-theme",
+    "esbenp.prettier-vscode",
+    "jlcs-es.x509-parser",
+    "ms-azuretools.vscode-docker"
+  ]
+}

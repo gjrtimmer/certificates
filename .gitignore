@@ -1,0 +1,9 @@
+certs/*
+!certs/.keep
+config/*
+!config/.keep
+
+__pycache__
+.DS_Store
+.vault-pass
+.pyc

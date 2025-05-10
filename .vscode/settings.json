@@ -1,0 +1,44 @@
+{
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/ansible/ansible-lint/main/src/ansiblelint/schemas/ansible.json#/$defs/playbook": [],
+  },
+  "explorer.compactFolders": false,
+  "files.eol": "\n",
+  "files.trimFinalNewlines": false,
+  "files.trimTrailingWhitespace": false,
+  "files.associations": {
+    "**/defaults/**/*.yml": "ansible",
+    "**/group_vars/**/*": "ansible",
+    "**/host_vars/**/*": "ansible",
+    "**/vars/**/*.yml": "ansible",
+    "**/tasks/**/*.yml": "ansible",
+    "**/handlers/*.yml": "ansible",
+    "**/meta/*.yml": "ansible",
+    "**/roles/**/*.yml": "ansible",
+    "**/playbooks/**/*.yml": "ansible",
+    "**/ansible/**/hosts": "properties",
+    "**/ansible/**/inventory": "properties",
+    "ansible.cfg": "properties"
+  },
+  "[ansible]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.detectIndentation": false,
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.fontFamily": "FiraCode-Retina, 'Fira Code Retina', 'Fira Code'",
+  "editor.fontLigatures": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "prettier.requireConfig": false,
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.fontFamily": "MesloLGS NF",
+  "ansible.python.interpreterPath": "/usr/bin/python3",
+  "ansible.validation.lint.path": "/config/.local/bin/ansible-lint",
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "ansible.lightspeed.enabled": false
+}

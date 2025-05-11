@@ -11,3 +11,4 @@ __pycache__
 .vault-pass
 .pyc
 .ansible
+.devcontainer/.bash_history

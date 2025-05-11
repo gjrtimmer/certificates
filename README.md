@@ -7,9 +7,10 @@ This repository allows you to quickly genereate certificates for services and or
 In order to usage this repository to create certificates you must do the following.
 
 1. Install dependecies `ansible-galaxy install -r requirements.yml`
-2. Copy `.config/hosts.yml` -> `hosts.yml`
-3. Copy `.config/defaults.yml` -> `config/defaults.yml`
-4. Copy `.config/cert.yml` -> `config/cert.yml`
+2. Create `certs` directory if not exists
+3. Copy `.config/hosts.yml` -> `hosts.yml`
+4. Copy `.config/defaults.yml` -> `config/defaults.yml`
+5. Copy `.config/cert.yml` -> `config/cert.yml`
 
 The ansible inventory must be copied first.
 By default this does not contain any nodes.

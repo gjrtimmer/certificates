@@ -1,0 +1,63 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/python
+{
+  "name": "Certificates",
+  "build": {
+    "context": "..",
+    "dockerfile": "docker/Dockerfile"
+  },
+  "runArgs": [
+    // Set container name
+    "--name=certificates",
+    // Condfigure Host network
+    "--network=host",
+    // Disable SELinux
+    "--security-opt=label=disable",
+    // Privileged
+    // We are running this container in privileged mode
+    // we are required to do this for Windows environments and mount points of .ssh
+    "--privileged"
+    // Disables Seccomp (System Call Filtering)
+    // removes restrictions on system calls the container can use
+    // "--security-opt=seccomp=unconfined"
+  ],
+  "initializeCommand": [
+    ".devcontainer/scripts/initialize"
+  ],
+  "postCreateCommand": ".devcontainer/scripts/postCreateCommand.sh",
+  "postStartCommand": ".devcontainer/scripts/postStartCommand.sh",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/work,type=bind",
+  "workspaceFolder": "/work",
+  "mounts": [
+    "source=${localEnv:HOME}/.ansible_vault_pass,target=/home/vscode/.ansible_vault_pass,type=bind",
+    "source=${localEnv:HOME}/.tpi,target=/home/vscode/.tpi,type=bind",
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind",
+    "source=${localEnv:HOME}/.ssh/config,target=/home/vscode/.ssh/config,type=bind",
+    "source=${localEnv:HOME}/.ssh/known_hosts,target=/home/vscode/.ssh/known_hosts,type=bind",
+    "source=${localEnv:HOME}/.ssh/tpi/,target=/home/vscode/.ssh/tpi/,type=bind"
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "redhat.ansible",
+        "redhat.vscode-yaml",
+        "dhoeric.ansible-vault",
+        "yzhang.markdown-all-in-one",
+        "DavidAnson.vscode-markdownlint",
+        "PKief.material-icon-theme",
+        "esbenp.prettier-vscode",
+        "jlcs-es.x509-parser",
+        "ms-azuretools.vscode-docker",
+        "aaron-bond.better-comments",
+        "donjayamanne.githistory",
+        "ms-kubernetes-tools.vscode-kubernetes-tools"
+      ]
+    }
+  },
+  "containerEnv": {
+    "ANSIBLE_COLLECTIONS_PATH": "/work/.ansible/collections:/usr/share/ansible/collections",
+    "ANSIBLE_ROLES_PATH": "./roles:/work/.ansible/roles:/usr/share/ansible/roles"
+  },
+  "remoteUser": "vscode",
+  "containerUser": "vscode"
+}

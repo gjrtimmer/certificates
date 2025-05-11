@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+
+# Prepare SSH directory
+if [[ ! -d "${HOME}/.ssh/tpi" ]]; then
+    mkdir -p "${HOME}/.ssh/tpi"
+fi
+
+# Prepare Data directory
+if [[ ! -d "${HOME}/.tpi" ]] && [[ ! -L "${HOME}/.tpi" ]]; then
+    mkdir -p "${HOME}/.tpi"
+fi
+
+if [[ ! -f "${HOME}/.ssh/.ansible_vault_pass" ]]; then
+    touch "${HOME}/.ansible_vault_pass"
+fi

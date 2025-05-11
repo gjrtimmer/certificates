@@ -1,5 +1,12 @@
 ---
 certificate:
+  info:
+    countryName: NL
+    stateOrProvinceName: Province
+    localityName: City
+    organizationName: Local
+    organizationalUnitName:
+    emailAddress: user@domain
   root:
     target:
       - dir: "{{ certificate.dir.remote }}/ca"

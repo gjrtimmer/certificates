@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 
+# Prepare Certificates directory\
+if [[ ! -d "${HOME}/.certs" ]]; then
+    mkdir -p "${HOME}/.certs"
+fi
+
 # Prepare SSH directory
 if [[ ! -d "${HOME}/.ssh/tpi" ]]; then
     mkdir -p "${HOME}/.ssh/tpi"

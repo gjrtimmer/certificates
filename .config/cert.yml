@@ -1,0 +1,24 @@
+---
+certificates:
+  - commonName: "vault.local"
+    sign: local
+    deploy:
+      target:
+        - dir: "{{ certificate.dir.remote }}/vault"
+          alias: server
+    san:
+      enabled: true
+      dns:
+        - "*.vault.local"
+        - vault.local
+        - node1.local
+        - node2.local
+        - node3.local
+        - node4.local
+        - localhost
+      ip:
+        - 192.168.0.21
+        - 192.168.0.22
+        - 192.168.0.23
+        - 192.168.0.24
+        - 127.0.0.1

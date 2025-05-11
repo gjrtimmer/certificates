@@ -57,6 +57,12 @@ certificates:
 Multiple certificates can be created from a single configuration file.
 Without a minimal of 1 configuration file for a certificate the repository will generate an error if you try to run it.
 
+After you configured the basics you can generate your certificate tree with:
+
+```shell
+./run.sh
+```
+
 ## Defaults
 
 The `config/defaults.yml` does not count for generating a certificate.

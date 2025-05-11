@@ -61,7 +61,7 @@ Without a minimal of 1 configuration file for a certificate the repository will 
 The `config/defaults.yml` does not count for generating a certificate.
 Make changes to this as you see fit.
 
-The default configuraiton for the Root CA and intermediate CAs like email address and other properties
+The default configuration for the Root CA and intermediate CAs like email address and other properties
 will be loaded from the `roles/certificates/defaults/main.yml`, you can override this in the `config/defaults.yml`
 and put in your own attributes. See `roles/certificates/defaults/main.yml` for more information.
 

@@ -137,6 +137,25 @@
         executable: /bin/bash
       changed_when: false
 
+    - name: Copy CA Chain to localhost
+      ansible.builtin.fetch:
+        src: "{{ config.dir.remote }}/ca/chain.crt"
+        dest: "{{ config.dir.local }}/certs/chain.crt"
+        flat: true
+      run_once: true
+
+    - name: Copy CA Chain
+      when: inventory_hostname in elm.hosts or elm.hosts in ['all', 'self']
+      ansible.builtin.copy:
+        src: "{{ config.dir.local }}/certs/chain.crt"
+        dest: "{{ elm.dir }}/{{ elm.name }}.crt"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ config.chain.target }}"
+      loop_control:
+        loop_var: elm
+
     - name: Link Root CA
       ansible.builtin.file:
         src: "{{ config.dir.remote }}/ca/root.crt"

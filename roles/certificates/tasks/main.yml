@@ -1,6 +1,7 @@
 # code: language=ansible
 - name: Initialize
   delegate_to: localhost
+  tags: [deploy]
   block:
     - name: Read Defaults Global
       ansible.builtin.include_vars:
@@ -48,6 +49,7 @@
 - name: Generate Root CA
   delegate_to: localhost
   run_once: true
+  tags: [deploy]
   block:
     - name: Check Root CA exists
       ansible.builtin.stat:
@@ -60,6 +62,7 @@
       when: not crt_root_exists.stat.exists
 
 - name: Generate Intermediate
+  tags: [deploy]
   ansible.builtin.include_tasks:
     file: intermediate/check.yml
   args:
@@ -71,10 +74,12 @@
     loop_var: cert
 
 - name: Generate Certificates (Global)
+  tags: [deploy]
   ansible.builtin.import_tasks:
     file: certs-global.yml
 
 - name: Generate Certificates (Nodes)
+  tags: [deploy]
   ansible.builtin.import_tasks:
     file: certs-nodes.yml
 

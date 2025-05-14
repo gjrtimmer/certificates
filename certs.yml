@@ -2,7 +2,5 @@
 - name: Generate Certificates
   hosts: all
   gather_facts: false
-  tags:
-    - certificates
   roles:
     - certificates

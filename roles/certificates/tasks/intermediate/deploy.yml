@@ -1,4 +1,13 @@
 # code: language=ansible
+- name: Create Target Directory
+  ansible.builtin.file:
+    path: "{{ elm.dir }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ cert.target }}"
+  loop_control:
+    loop_var: elm
+
 - name: Copy Intermediate CAs
   when: cert.enabled and (inventory_hostname in elm.hosts or elm.hosts in ['all', 'self'])
   ansible.builtin.copy:

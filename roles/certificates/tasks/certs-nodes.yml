@@ -2,13 +2,19 @@
 - name: Generate Global Certificates
   when: inventory_hostname != 'localhost'
   delegate_to: localhost
+  tags: [deploy]
   block:
+    - name: Set Default
+      ansible.builtin.set_fact:
+        certificates_nodes: "{{ certificates_nodes | default([]) }}"
+
     - name: Server CN Slug (Nodes)
       ansible.builtin.set_fact:
         certificates_nodes: "{{ certificates_nodes | default([]) + [item | combine({'server': {'commonNameSlug': item.server.commonName | regex_replace('^\\*', 'wild')}}, recursive=True)] | list }}"
       loop: "{{ certs_nodes }}"
 
     - name: Check Certificate Exists (Nodes)
+      when: certificates_nodes | length > 0
       ansible.builtin.stat:
         path: "{{ config.dir.local }}/certs/{{ item.server.commonNameSlug }}"
       register: crt_nodes

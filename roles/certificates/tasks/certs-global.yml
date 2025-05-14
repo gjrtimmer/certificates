@@ -2,6 +2,7 @@
 - name: Generate Global Certificates
   delegate_to: localhost
   run_once: true
+  tags: [deploy]
   block:
     - name: Server CN Slug (Global)
       ansible.builtin.set_fact:

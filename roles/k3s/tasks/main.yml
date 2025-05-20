@@ -60,10 +60,26 @@
   delegate_to: localhost
   run_once: true
 
+- name: Rebuild chain.crt for each intermediate CA # noqa: no-changed-when
+  vars:
+    cert_name: "{{ item | basename }}"
+    intermediate_crt: "{{ item }}/certs/{{ cert_name }}.crt"
+    root_crt: "certs/certs/root.crt"
+    chain_output: "{{ item }}/certs/chain.crt"
+  ansible.builtin.shell: |
+    cat "{{ intermediate_crt }}" "{{ root_crt }}" > "{{ chain_output }}"
+  args:
+    executable: /bin/bash
+  loop: "{{ valid_intermediates }}"
+  loop_control:
+    label: "{{ cert_name }}"
+  delegate_to: localhost
+  run_once: true
+
 - name: Create secrets for intermediate CAs
   vars:
     cert_name: "{{ item | basename }}"
-    cert_path: "{{ item }}/certs/{{ cert_name }}.crt"
+    cert_path: "{{ item }}/certs/chain.crt"
     key_path: "{{ item }}/private/{{ cert_name }}.key"
   kubernetes.core.k8s:
     state: present
@@ -99,5 +115,20 @@
   loop: "{{ valid_intermediates }}"
   loop_control:
     label: "{{ item | basename }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Generate and apply wildcard certificate for *.k3s
+  ansible.builtin.template:
+    src: wildcard-internal.yml.j2
+    dest: /tmp/wildcard-internal.yml
+    mode: "0644"
+  delegate_to: localhost
+  run_once: true
+
+- name: Apply wildcard certificate and ClusterIssuer
+  kubernetes.core.k8s:
+    src: /tmp/wildcard-internal.yml
+    state: present
   delegate_to: localhost
   run_once: true

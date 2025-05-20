@@ -118,7 +118,7 @@
     label: "{{ item | basename }}"
   run_once: true
 
-- name: Ensure cert-manager namespace exists
+- name: Ensure cluster wildcard certificate namespace exists
   delegate_to: localhost
   when: k3s.wildcard.enabled and k3s.wildcard.namespace.create | default(true)
   kubernetes.core.k8s:
@@ -130,7 +130,7 @@
         name: "{{ k3s.wildcard.namespace.name }}"
   run_once: true
 
-- name: Generate and apply wildcard certificate for *.k3s
+- name: Generate cluster wildcard certificate
   when: k3s.wildcard.enabled
   delegate_to: localhost
   ansible.builtin.template:
@@ -139,7 +139,7 @@
     mode: "0644"
   run_once: true
 
-- name: Apply wildcard certificate and ClusterIssuer
+- name: Apply cluster wildcard certificate
   when: k3s.wildcard.enabled
   delegate_to: localhost
   kubernetes.core.k8s:

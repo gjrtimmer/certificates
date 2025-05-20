@@ -1,0 +1,14 @@
+# code: language=yaml
+---
+k3s:
+  wildcard:
+    enabled: true
+    namespace:
+      name: traefik
+      create: true
+    commonName: "*.k3s"
+    dnsNames:
+      - "*.k3s"
+    issuer: k3s-ca
+    duration: 2160h # 90 days
+    renewBefore: 168h # 7 days

@@ -1,6 +1,7 @@
 # code: lang=ansible
 ---
 - name: Ensure cert-manager namespace exists
+  delegate_to: localhost
   kubernetes.core.k8s:
     state: present
     definition:
@@ -8,10 +9,10 @@
       kind: Namespace
       metadata:
         name: cert-manager
-  delegate_to: localhost
   run_once: true
 
 - name: Create root CA secret for cert-manager
+  delegate_to: localhost
   kubernetes.core.k8s:
     state: present
     namespace: cert-manager
@@ -24,10 +25,10 @@
       data:
         tls.crt: "{{ lookup('ansible.builtin.file', 'certs/certs/root.crt') | b64encode }}"
         tls.key: "{{ lookup('ansible.builtin.file', 'certs/private/root.key') | b64encode }}"
-  delegate_to: localhost
   run_once: true
 
 - name: Create ClusterIssuer for root CA
+  delegate_to: localhost
   kubernetes.core.k8s:
     state: present
     definition:
@@ -38,18 +39,18 @@
       spec:
         ca:
           secretName: root-ca-secret
-  delegate_to: localhost
   run_once: true
 
 - name: Discover intermediate certificate directories
+  delegate_to: localhost
   ansible.builtin.find:
     paths: certs/intermediate
     file_type: directory
   register: intermediate_dirs
-  delegate_to: localhost
   run_once: true
 
 - name: Filter valid intermediate directories (exclude 'newcerts')
+  delegate_to: localhost
   ansible.builtin.set_fact:
     valid_intermediates: >-
       {{ intermediate_dirs.files
@@ -57,10 +58,10 @@
          | select('match', '^certs/intermediate/[^/]+$')
          | reject('search', '/newcerts$')
          | list }}
-  delegate_to: localhost
   run_once: true
 
 - name: Rebuild chain.crt for each intermediate CA # noqa: no-changed-when
+  delegate_to: localhost
   vars:
     cert_name: "{{ item | basename }}"
     intermediate_crt: "{{ item }}/certs/{{ cert_name }}.crt"
@@ -73,10 +74,10 @@
   loop: "{{ valid_intermediates }}"
   loop_control:
     label: "{{ cert_name }}"
-  delegate_to: localhost
   run_once: true
 
 - name: Create secrets for intermediate CAs
+  delegate_to: localhost
   vars:
     cert_name: "{{ item | basename }}"
     cert_path: "{{ item }}/certs/chain.crt"
@@ -96,10 +97,10 @@
   loop: "{{ valid_intermediates }}"
   loop_control:
     label: "{{ item | basename }}"
-  delegate_to: localhost
   run_once: true
 
 - name: Create ClusterIssuers for intermediate CAs
+  delegate_to: localhost
   vars:
     cert_name: "{{ item | basename }}"
   kubernetes.core.k8s:
@@ -115,20 +116,33 @@
   loop: "{{ valid_intermediates }}"
   loop_control:
     label: "{{ item | basename }}"
+  run_once: true
+
+- name: Ensure cert-manager namespace exists
   delegate_to: localhost
+  when: k3s.wildcard.enabled and k3s.wildcard.namespace.create | default(true)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ k3s.wildcard.namespace.name }}"
   run_once: true
 
 - name: Generate and apply wildcard certificate for *.k3s
+  when: k3s.wildcard.enabled
+  delegate_to: localhost
   ansible.builtin.template:
     src: wildcard-internal.yml.j2
     dest: /tmp/wildcard-internal.yml
     mode: "0644"
-  delegate_to: localhost
   run_once: true
 
 - name: Apply wildcard certificate and ClusterIssuer
+  when: k3s.wildcard.enabled
+  delegate_to: localhost
   kubernetes.core.k8s:
     src: /tmp/wildcard-internal.yml
     state: present
-  delegate_to: localhost
   run_once: true

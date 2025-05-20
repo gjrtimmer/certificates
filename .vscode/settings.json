@@ -36,7 +36,7 @@
   "terminal.integrated.defaultProfile.linux": "bash",
   "terminal.integrated.fontFamily": "MesloLGS NF",
   "ansible.python.interpreterPath": "/usr/bin/python3",
-  "ansible.validation.lint.path": "/config/.local/bin/ansible-lint",
+  "ansible.validation.lint.path": "/home/vscode/.local/bin/ansible-lint",
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   },

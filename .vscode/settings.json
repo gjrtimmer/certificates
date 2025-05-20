@@ -40,5 +40,11 @@
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   },
-  "ansible.lightspeed.enabled": false
+  "ansible.lightspeed.enabled": false,
+  "vs-kubernetes": {
+    "vs-kubernetes.kubectl-path": "/usr/bin/kubectl",
+    "vs-kubernetes.kubectl-path.linux": "/usr/bin/kubectl",
+    "vs-kubernetes.helm-path": "/usr/local/bin/helm",
+    "vs-kubernetes.helm-path.linux": "/usr/local/bin/helm",
+  }
 }

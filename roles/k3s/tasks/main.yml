@@ -1,0 +1,103 @@
+# code: lang=ansible
+---
+- name: Ensure cert-manager namespace exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: cert-manager
+  delegate_to: localhost
+  run_once: true
+
+- name: Create root CA secret for cert-manager
+  kubernetes.core.k8s:
+    state: present
+    namespace: cert-manager
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: root-ca-secret
+      type: kubernetes.io/tls
+      data:
+        tls.crt: "{{ lookup('ansible.builtin.file', 'certs/certs/root.crt') | b64encode }}"
+        tls.key: "{{ lookup('ansible.builtin.file', 'certs/private/root.key') | b64encode }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Create ClusterIssuer for root CA
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: root-ca
+      spec:
+        ca:
+          secretName: root-ca-secret
+  delegate_to: localhost
+  run_once: true
+
+- name: Discover intermediate certificate directories
+  ansible.builtin.find:
+    paths: certs/intermediate
+    file_type: directory
+  register: intermediate_dirs
+  delegate_to: localhost
+  run_once: true
+
+- name: Filter valid intermediate directories (exclude 'newcerts')
+  ansible.builtin.set_fact:
+    valid_intermediates: >-
+      {{ intermediate_dirs.files
+         | map(attribute='path')
+         | select('match', '^certs/intermediate/[^/]+$')
+         | reject('search', '/newcerts$')
+         | list }}
+  delegate_to: localhost
+  run_once: true
+
+- name: Create secrets for intermediate CAs
+  vars:
+    cert_name: "{{ item | basename }}"
+    cert_path: "{{ item }}/certs/{{ cert_name }}.crt"
+    key_path: "{{ item }}/private/{{ cert_name }}.key"
+  kubernetes.core.k8s:
+    state: present
+    namespace: cert-manager
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ cert_name }}-ca-secret"
+      type: kubernetes.io/tls
+      data:
+        tls.crt: "{{ lookup('ansible.builtin.file', cert_path) | b64encode }}"
+        tls.key: "{{ lookup('ansible.builtin.file', key_path) | b64encode }}"
+  loop: "{{ valid_intermediates }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Create ClusterIssuers for intermediate CAs
+  vars:
+    cert_name: "{{ item | basename }}"
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: "{{ cert_name }}-ca"
+      spec:
+        ca:
+          secretName: "{{ cert_name }}-ca-secret"
+  loop: "{{ valid_intermediates }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  delegate_to: localhost
+  run_once: true

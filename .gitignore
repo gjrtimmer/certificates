@@ -5,6 +5,8 @@ config/*
 host_vars/*
 !host_vars/.keep
 hosts.yml
+group_vars/*
+!group_vars/.keep
 
 __pycache__
 .DS_Store

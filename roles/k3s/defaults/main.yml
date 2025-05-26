@@ -1,14 +1,14 @@
 # code: language=yaml
 ---
-k3s:
-  wildcard:
-    enabled: true
-    namespace:
-      name: cert-manager
-      create: true
-    commonName: "*.k3s"
-    dnsNames:
-      - "*.k3s"
-    issuer: k3s-ca
-    duration: 2160h # 90 days
-    renewBefore: 168h # 7 days
+# k3s:
+#   wildcards:
+#     - name: k3s
+#       namespace:
+#         name: cert-manager
+#         create: true
+#       commonName: "*.k3s"
+#       dnsNames:
+#         - "*.k3s"
+#       issuer: k3s-ca
+#       duration: 2160h # 90 days
+#       renewBefore: 168h # 7 days

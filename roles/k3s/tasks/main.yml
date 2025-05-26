@@ -120,29 +120,36 @@
 
 - name: Ensure cluster wildcard certificate namespace exists
   delegate_to: localhost
-  when: k3s.wildcard.enabled and k3s.wildcard.namespace.create | default(true)
+  when: cert.namespace.create | default(true)
   kubernetes.core.k8s:
     state: present
     definition:
       apiVersion: v1
       kind: Namespace
       metadata:
-        name: "{{ k3s.wildcard.namespace.name }}"
+        name: "{{ cert.namespace.name }}"
   run_once: true
+  loop: "{{ k3s.wildcards }}"
+  loop_control:
+    loop_var: cert
 
 - name: Generate cluster wildcard certificate
-  when: k3s.wildcard.enabled
   delegate_to: localhost
   ansible.builtin.template:
     src: wildcard-internal.yml.j2
-    dest: /tmp/wildcard-internal.yml
+    dest: /tmp/wildcard-{{ cert.name }}.yml
     mode: "0644"
   run_once: true
+  loop: "{{ k3s.wildcards }}"
+  loop_control:
+    loop_var: cert
 
 - name: Apply cluster wildcard certificate
-  when: k3s.wildcard.enabled
   delegate_to: localhost
   kubernetes.core.k8s:
-    src: /tmp/wildcard-internal.yml
+    src: /tmp/wildcard-{{ cert.name }}.yml
     state: present
   run_once: true
+  loop: "{{ k3s.wildcards }}"
+  loop_control:
+    loop_var: cert

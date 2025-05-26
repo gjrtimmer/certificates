@@ -3,13 +3,13 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: wildcard-k3s
-  namespace: {{ k3s.wildcard.namespace.name | default('traefik') | to_json }}
+  namespace: {{ cert.namespace.name | default('traefik') | to_json }}
 spec:
-  secretName: wildcard-k3s
-  commonName: {{ k3s.wildcard.commonName | default('*.k3s') | to_json }}
-  dnsNames: {{ k3s.wildcard.dnsNames | default(['*.k3s']) | to_json }}
+  secretName: wildcard-{{ cert.name }}-tls
+  commonName: {{ cert.commonName | to_json }}
+  dnsNames: {{ cert.dnsNames | default([]) | to_json }}
   issuerRef:
-    name: {{ k3s.wildcard.issuer | default('k3s-ca') | to_json }}
+    name: {{ cert.issuer | to_json }}
     kind: ClusterIssuer
-  duration: {{ k3s.wildcard.duration | default('2160h') | to_json }}
-  renewBefore: {{ k3s.wildcard.renewBefore | default('168h') | to_json }}
+  duration: {{ cert.duration | default('2160h') | to_json }}
+  renewBefore: {{ cert.renewBefore | default('168h') | to_json }}

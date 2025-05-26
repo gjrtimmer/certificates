@@ -132,3 +132,13 @@ deploy the certificates, change the target servers as  you see fit.
 ```shell
 ansible-playbook -l all certs.yml -t deploy`
 ```
+
+## K3s
+
+Ability to deploy certificates to a Kubernetes cluster.
+
+```bash
+ansible-playbook k3s.yml
+```
+
+For configuration see `roles/k3s/defaults/main.yml` copy this to your `group_vars/all.yml` and configure to your own requirements.

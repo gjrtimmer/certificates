@@ -1,5 +1,7 @@
 # code: language=yaml
 ---
+k3s:
+  wildcards: []
 # k3s:
 #   wildcards:
 #     - name: k3s

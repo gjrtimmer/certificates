@@ -11,6 +11,17 @@
         name: cert-manager
   run_once: true
 
+- name: Ensure external-secrets namespace exists
+  delegate_to: localhost
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: external-secrets
+  run_once: true
+
 - name: Create root CA secret for cert-manager
   delegate_to: localhost
   kubernetes.core.k8s:
@@ -21,6 +32,7 @@
       kind: Secret
       metadata:
         name: root-ca-secret
+        namespace: cert-manager
       type: kubernetes.io/tls
       data:
         tls.crt: "{{ lookup('ansible.builtin.file', 'certs/certs/root.crt') | b64encode }}"
@@ -90,6 +102,12 @@
       kind: Secret
       metadata:
         name: "{{ cert_name }}-ca-secret"
+        namespace: cert-manager
+        annotations:
+          reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+          reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "external-secrets"
+          reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+          reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "external-secrets"
       type: kubernetes.io/tls
       data:
         tls.crt: "{{ lookup('ansible.builtin.file', cert_path) | b64encode }}"
@@ -110,6 +128,7 @@
       kind: ClusterIssuer
       metadata:
         name: "{{ cert_name }}-ca"
+        namespace: cert-manager
       spec:
         ca:
           secretName: "{{ cert_name }}-ca-secret"

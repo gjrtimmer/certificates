@@ -20,7 +20,7 @@
   loop_control:
     loop_var: elm
 
-- name: Copy Chain Certificate
+- name: Copy Intermediate Chain Certificate
   when: cert.enabled
   ansible.builtin.copy:
     src: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/chain.crt"

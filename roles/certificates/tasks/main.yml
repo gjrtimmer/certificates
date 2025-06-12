@@ -83,6 +83,33 @@
   ansible.builtin.import_tasks:
     file: certs-nodes.yml
 
+- name: Clear existing CA chain
+  tags: [deploy]
+  ansible.builtin.file:
+    path: "{{ config.dir.local }}/certs/chain.crt"
+    state: absent
+  run_once: true
+  delegate_to: localhost
+
+- name: Create CA Chain
+  tags: [deploy]
+  ansible.builtin.shell: |
+    cat "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt" >> "{{ config.dir.local }}/certs/chain.crt"
+  loop: "{{ config.intermediate }}"
+  loop_control:
+    loop_var: cert
+  changed_when: true
+  run_once: true
+  delegate_to: localhost
+
+- name: Append root certificate to CA Chain
+  tags: [deploy]
+  ansible.builtin.shell: |
+    cat "{{ config.dir.local }}/certs/root.crt" >> "{{ config.dir.local }}/certs/chain.crt"
+  changed_when: true
+  run_once: true
+  delegate_to: localhost
+
 - name: Reset Certificate Directory
   tags: ["reset"]
   when: "'reset' in ansible_run_tags"
@@ -129,20 +156,11 @@
       loop_control:
         loop_var: cert
 
-    - name: Create CA Chain
-      ansible.builtin.shell:
-        cmd: |
-          set -o pipefail
-          cat {{ config.dir.remote }}/ca/root.crt $(ls {{ config.dir.remote }}/ca/*.crt | grep -v 'chain*' | grep -v 'root.crt') > {{ config.dir.remote }}/ca/chain.crt
-        executable: /bin/bash
-      changed_when: false
-
-    - name: Copy CA Chain to localhost
-      ansible.builtin.fetch:
-        src: "{{ config.dir.remote }}/ca/chain.crt"
-        dest: "{{ config.dir.local }}/certs/chain.crt"
-        flat: true
-      run_once: true
+    - name: Copy CA Chain to Node
+      ansible.builtin.copy:
+        src: "{{ config.dir.local }}/certs/chain.crt"
+        dest: "{{ config.dir.remote }}/ca/chain.crt"
+        mode: "0644"
 
     - name: Copy CA Chain
       when: inventory_hostname in elm.hosts or elm.hosts in ['all', 'self']

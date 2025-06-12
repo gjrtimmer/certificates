@@ -37,6 +37,19 @@ certificate:
         commonName: K3s CA
         commonNameSlug: K3S_CA
       name: k3s
+    - enabled: true
+      bitsize: 4096
+      serial: 1000
+      days: 3650
+      target:
+        - dir: "{{ certificate.dir.remote }}/ca"
+          name: svc
+          hosts: all
+      info:
+        commonName: K3s Service CA
+        commonNameSlug: K3S_SERVICE_CA
+      name: svc
+
   chain:
     target:
       - dir: "{{ certificate.dir.remote }}/ca"

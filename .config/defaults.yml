@@ -25,6 +25,7 @@ certificate:
         commonName: Local CA
         commonNameSlug: Local_CA
       name: local
+      reflector: true
     - enabled: true
       bitsize: 4096
       serial: 1000
@@ -37,6 +38,7 @@ certificate:
         commonName: K3s CA
         commonNameSlug: K3S_CA
       name: k3s
+      reflector: true
     - enabled: true
       bitsize: 4096
       serial: 1000
@@ -49,6 +51,7 @@ certificate:
         commonName: K3s Service CA
         commonNameSlug: K3S_SERVICE_CA
       name: svc
+      reflecetor: false
 
   chain:
     target:

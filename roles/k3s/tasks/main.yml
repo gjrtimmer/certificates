@@ -1,5 +1,11 @@
 # code: lang=ansible
 ---
+- name: Load config defaults
+  delegate_to: localhost
+  ansible.builtin.set_fact:
+    config: "{{ lookup('ansible.builtin.file', playbook_dir + '/config/defaults.yml') | from_yaml }}"
+  run_once: true
+
 - name: Ensure cert-manager namespace exists
   delegate_to: localhost
   kubernetes.core.k8s:
@@ -72,28 +78,66 @@
          | list }}
   run_once: true
 
+- name: Build intermediate configs from certificate config
+  delegate_to: localhost
+  ansible.builtin.set_fact:
+    intermediate_configs: "{{ intermediate_configs | default([]) + [item | combine({'path': 'certs/intermediate/' + item.name})] }}"
+  loop: "{{ config.certificate.intermediate }}"
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true
+
+- ansible.builtin.debug:
+    var: intermediate_configs
+
 - name: Rebuild chain.crt for each intermediate CA # noqa: no-changed-when
   delegate_to: localhost
   vars:
-    cert_name: "{{ item | basename }}"
-    intermediate_crt: "{{ item }}/certs/{{ cert_name }}.crt"
+    cert_name: "{{ item.name }}"
+    intermediate_crt: "{{ item.path }}/certs/{{ item.name }}.crt"
     root_crt: "certs/certs/root.crt"
-    chain_output: "{{ item }}/certs/chain.crt"
+    chain_output: "{{ item.path }}/certs/chain.crt"
   ansible.builtin.shell: |
     cat "{{ intermediate_crt }}" "{{ root_crt }}" > "{{ chain_output }}"
   args:
     executable: /bin/bash
-  loop: "{{ valid_intermediates }}"
+  loop: "{{ intermediate_configs }}"
   loop_control:
-    label: "{{ cert_name }}"
+    label: "{{ item.name }}"
   run_once: true
 
 - name: Create secrets for intermediate CAs
+  when: not item.reflector | default(false)
   delegate_to: localhost
   vars:
-    cert_name: "{{ item | basename }}"
-    cert_path: "{{ item }}/certs/chain.crt"
-    key_path: "{{ item }}/private/{{ cert_name }}.key"
+    cert_name: "{{ item.name }}"
+    cert_path: "{{ item.path }}/certs/chain.crt"
+    key_path: "{{ item.path }}/private/{{ item.name }}.key"
+  kubernetes.core.k8s:
+    state: present
+    namespace: cert-manager
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ cert_name }}-ca-secret"
+        namespace: cert-manager
+      type: kubernetes.io/tls
+      data:
+        tls.crt: "{{ lookup('ansible.builtin.file', cert_path) | b64encode }}"
+        tls.key: "{{ lookup('ansible.builtin.file', key_path) | b64encode }}"
+  loop: "{{ intermediate_configs }}"
+  loop_control:
+    label: "{{ item.name }}"
+  run_once: true
+
+- name: Create secrets for intermediate CAs
+  when: item.reflector | default(false)
+  delegate_to: localhost
+  vars:
+    cert_name: "{{ item.name }}"
+    cert_path: "{{ item.path }}/certs/chain.crt"
+    key_path: "{{ item.path }}/private/{{ item.name }}.key"
   kubernetes.core.k8s:
     state: present
     namespace: cert-manager
@@ -112,15 +156,15 @@
       data:
         tls.crt: "{{ lookup('ansible.builtin.file', cert_path) | b64encode }}"
         tls.key: "{{ lookup('ansible.builtin.file', key_path) | b64encode }}"
-  loop: "{{ valid_intermediates }}"
+  loop: "{{ intermediate_configs }}"
   loop_control:
-    label: "{{ item | basename }}"
+    label: "{{ item.name }}"
   run_once: true
 
 - name: Create ClusterIssuers for intermediate CAs
   delegate_to: localhost
   vars:
-    cert_name: "{{ item | basename }}"
+    cert_name: "{{ item.name }}"
   kubernetes.core.k8s:
     state: present
     definition:
@@ -132,9 +176,9 @@
       spec:
         ca:
           secretName: "{{ cert_name }}-ca-secret"
-  loop: "{{ valid_intermediates }}"
+  loop: "{{ intermediate_configs }}"
   loop_control:
-    label: "{{ item | basename }}"
+    label: "{{ item.name }}"
   run_once: true
 
 - name: Ensure cluster wildcard certificate namespace exists

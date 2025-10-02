@@ -14,3 +14,4 @@ __pycache__
 .pyc
 .ansible
 .devcontainer/.bash_history
+.certs.bak/

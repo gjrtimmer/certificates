@@ -2,5 +2,9 @@
 - name: Deploy Certificates to K3s
   hosts: localhost
   gather_facts: false
+  vars_prompt:
+    - name: "context"
+      prompt: "Enter the Cluster Context"
+      private: false
   roles:
     - k3s

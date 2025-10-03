@@ -9,6 +9,7 @@
 - name: Ensure cert-manager namespace exists
   delegate_to: localhost
   kubernetes.core.k8s:
+    context: "{{ context }}"
     state: present
     definition:
       apiVersion: v1
@@ -17,20 +18,10 @@
         name: cert-manager
   run_once: true
 
-- name: Ensure external-secrets namespace exists
-  delegate_to: localhost
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Namespace
-      metadata:
-        name: external-secrets
-  run_once: true
-
 - name: Create root CA secret for cert-manager
   delegate_to: localhost
   kubernetes.core.k8s:
+    context: "{{ context }}"
     state: present
     namespace: cert-manager
     definition:
@@ -48,6 +39,7 @@
 - name: Create ClusterIssuer for root CA
   delegate_to: localhost
   kubernetes.core.k8s:
+    context: "{{ context }}"
     state: present
     definition:
       apiVersion: cert-manager.io/v1
@@ -87,9 +79,6 @@
     label: "{{ item.name }}"
   run_once: true
 
-- ansible.builtin.debug:
-    var: intermediate_configs
-
 - name: Rebuild chain.crt for each intermediate CA # noqa: no-changed-when
   delegate_to: localhost
   vars:
@@ -114,6 +103,7 @@
     cert_path: "{{ item.path }}/certs/chain.crt"
     key_path: "{{ item.path }}/private/{{ item.name }}.key"
   kubernetes.core.k8s:
+    context: "{{ context }}"
     state: present
     namespace: cert-manager
     definition:
@@ -139,6 +129,7 @@
     cert_path: "{{ item.path }}/certs/chain.crt"
     key_path: "{{ item.path }}/private/{{ item.name }}.key"
   kubernetes.core.k8s:
+    context: "{{ context }}"
     state: present
     namespace: cert-manager
     definition:
@@ -147,11 +138,11 @@
       metadata:
         name: "{{ cert_name }}-ca-secret"
         namespace: cert-manager
-        annotations:
-          reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
-          reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "external-secrets"
-          reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
-          reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "external-secrets"
+        # annotations:
+        #   reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
+        #   reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "external-secrets"
+        #   reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
+        #   reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "external-secrets"
       type: kubernetes.io/tls
       data:
         tls.crt: "{{ lookup('ansible.builtin.file', cert_path) | b64encode }}"
@@ -166,6 +157,7 @@
   vars:
     cert_name: "{{ item.name }}"
   kubernetes.core.k8s:
+    context: "{{ context }}"
     state: present
     definition:
       apiVersion: cert-manager.io/v1
@@ -180,39 +172,3 @@
   loop_control:
     label: "{{ item.name }}"
   run_once: true
-
-- name: Ensure cluster wildcard certificate namespace exists
-  delegate_to: localhost
-  when: cert.namespace.create | default(true)
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Namespace
-      metadata:
-        name: "{{ cert.namespace.name }}"
-  run_once: true
-  loop: "{{ k3s.wildcards }}"
-  loop_control:
-    loop_var: cert
-
-- name: Generate cluster wildcard certificate
-  delegate_to: localhost
-  ansible.builtin.template:
-    src: wildcard-internal.yml.j2
-    dest: /tmp/wildcard-{{ cert.name }}.yml
-    mode: "0644"
-  run_once: true
-  loop: "{{ k3s.wildcards }}"
-  loop_control:
-    loop_var: cert
-
-- name: Apply cluster wildcard certificate
-  delegate_to: localhost
-  kubernetes.core.k8s:
-    src: /tmp/wildcard-{{ cert.name }}.yml
-    state: present
-  run_once: true
-  loop: "{{ k3s.wildcards }}"
-  loop_control:
-    loop_var: cert

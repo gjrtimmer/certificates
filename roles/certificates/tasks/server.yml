@@ -145,7 +145,7 @@
 
     - name: "Verify Server Certificate Against Chain"
       ansible.builtin.shell:
-        cmd: "openssl verify -CAfile {{ config.dir.local }}/intermediate/{{ signing_cert }}/certs/chain.crt {{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.crt"
+        cmd: "openssl verify -CAfile {{ config.dir.local }}/intermediate/{{ signing_cert }}/certs/chain.{{ hostvars[inventory_hostname].context }}.crt {{ config.dir.local }}/certs/{{ cert.item.server.commonNameSlug }}/{{ cert.item.server.commonNameSlug }}.crt"
         executable: /bin/bash
       changed_when: false
       register: crt_server_verify

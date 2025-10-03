@@ -1,6 +1,10 @@
 # code: language=ansible
 - name: Create Certificate Target Directory
   tags: [deploy]
+  when:
+    - elm.target is defined
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([elm.context] | flatten | map('upper') | list)
   ansible.builtin.file:
     path: "{{ elm.1.dir }}"
     state: directory
@@ -13,6 +17,10 @@
 
 - name: Copy Certificate (Public-Key) to Target
   tags: [deploy]
+  when:
+    - elm.target is defined
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([elm.context] | flatten | map('upper') | list)
   ansible.builtin.copy:
     src: "{{ config.dir.local }}/certs/{{ elm.0.server.commonNameSlug }}/{{ elm.0.server.commonNameSlug }}.crt"
     dest: "{{ elm.1.dir }}/{{ elm.0.server.commonNameSlug }}.crt"
@@ -23,6 +31,10 @@
 
 - name: Copy Certificate (Private-Key) to Target
   tags: [deploy]
+  when:
+    - elm.target is defined
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([elm.context] | flatten | map('upper') | list)
   ansible.builtin.copy:
     src: "{{ config.dir.local }}/certs/{{ elm.0.server.commonNameSlug }}/{{ elm.0.server.commonNameSlug }}.key"
     dest: "{{ elm.1.dir }}/{{ elm.0.server.commonNameSlug }}.key"
@@ -33,7 +45,10 @@
 
 - name: Create Certificate Alias (Public-Key)
   tags: [deploy]
-  when: elm.1.alias is defined and elm.1.alias | length > 0
+  when:
+    - elm.1.alias is defined and elm.1.alias | length > 0
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([elm.1.context] | flatten | map('upper') | list)
   ansible.builtin.file:
     src: "{{ elm.0.server.commonNameSlug }}.crt"
     path: "{{ elm.1.dir }}/{{ elm.1.alias }}.crt"
@@ -45,7 +60,10 @@
 
 - name: Create Certificate Alias (Private-Key)
   tags: [deploy]
-  when: elm.1.alias is defined and elm.1.alias | length > 0
+  when:
+    - elm.1.alias is defined and elm.1.alias | length > 0
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([elm.1.context] | flatten | map('upper') | list)
   ansible.builtin.file:
     src: "{{ elm.0.server.commonNameSlug }}.key"
     path: "{{ elm.1.dir }}/{{ elm.1.alias }}.key"

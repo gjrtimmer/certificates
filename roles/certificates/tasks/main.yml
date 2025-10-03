@@ -86,15 +86,18 @@
 - name: Clear existing CA chain
   tags: [deploy]
   ansible.builtin.file:
-    path: "{{ config.dir.local }}/certs/chain.crt"
+    path: "{{ config.dir.local }}/certs/chain.{{ hostvars[inventory_hostname].context }}.crt"
     state: absent
   run_once: true
   delegate_to: localhost
 
 - name: Create CA Chain
   tags: [deploy]
+  when:
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([cert.context] | flatten | map('upper') | list)
   ansible.builtin.shell: |
-    cat "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt" >> "{{ config.dir.local }}/certs/chain.crt"
+    cat "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt" >> "{{ config.dir.local }}/certs/chain.{{ hostvars[inventory_hostname].context }}.crt"
   loop: "{{ config.intermediate }}"
   loop_control:
     loop_var: cert
@@ -105,7 +108,7 @@
 - name: Append root certificate to CA Chain
   tags: [deploy]
   ansible.builtin.shell: |
-    cat "{{ config.dir.local }}/certs/root.crt" >> "{{ config.dir.local }}/certs/chain.crt"
+    cat "{{ config.dir.local }}/certs/root.crt" >> "{{ config.dir.local }}/certs/chain.{{ hostvars[inventory_hostname].context }}.crt"
   changed_when: true
   run_once: true
   delegate_to: localhost
@@ -126,7 +129,12 @@
   become: true
   block:
     - name: Ensure Root CA Targets
-      when: inventory_hostname in elm.hosts or elm.hosts in ['all', 'self']
+      when:
+        - inventory_hostname in elm.hosts
+          or 'all' in elm.hosts
+          or 'self' in elm.hosts
+        - (hostvars[inventory_hostname].context | default('') | upper)
+          in ([elm.context] | flatten | map('upper') | list)
       ansible.builtin.file:
         path: "{{ elm.dir }}"
         state: directory
@@ -138,7 +146,12 @@
         loop_var: elm
 
     - name: Copy Root CA to Targets
-      when: inventory_hostname in elm.hosts or elm.hosts in ['all', 'self']
+      when:
+        - inventory_hostname in elm.hosts
+          or 'all' in elm.hosts
+          or 'self' in elm.hosts
+        - (hostvars[inventory_hostname].context | default('') | upper)
+          in ([elm.context] | flatten | map('upper') | list)
       ansible.builtin.copy:
         src: "{{ config.dir.local }}/certs/root.crt"
         dest: "{{ elm.dir }}/{{ elm.name }}.crt"
@@ -150,6 +163,9 @@
         loop_var: elm
 
     - name: Copy Intermediate Certificates
+      when:
+        - (hostvars[inventory_hostname].context | default('') | upper)
+          in ([cert.context] | flatten | map('upper') | list)
       ansible.builtin.include_tasks:
         file: intermediate/deploy.yml
       loop: "{{ config.intermediate }}"
@@ -157,15 +173,23 @@
         loop_var: cert
 
     - name: Copy CA Chain to Node
+      when:
+        - (hostvars[inventory_hostname].context | default('') | upper)
+          in ([context] | flatten | map('upper') | list)
       ansible.builtin.copy:
-        src: "{{ config.dir.local }}/certs/chain.crt"
+        src: "{{ config.dir.local }}/certs/chain.{{ hostvars[inventory_hostname].context }}.crt"
         dest: "{{ config.dir.remote }}/ca/chain.crt"
         mode: "0644"
 
     - name: Copy CA Chain
-      when: inventory_hostname in elm.hosts or elm.hosts in ['all', 'self']
+      when:
+        - inventory_hostname in elm.hosts
+          or 'all' in elm.hosts
+          or 'self' in elm.hosts
+        - (hostvars[inventory_hostname].context | default('') | upper)
+          in ([elm.context] | flatten | map('upper') | list)
       ansible.builtin.copy:
-        src: "{{ config.dir.local }}/certs/chain.crt"
+        src: "{{ config.dir.local }}/certs/chain.{{ hostvars[inventory_hostname].context }}.crt"
         dest: "{{ elm.dir }}/{{ elm.name }}.crt"
         owner: root
         group: root

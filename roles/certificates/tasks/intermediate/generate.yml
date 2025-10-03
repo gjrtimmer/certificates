@@ -88,7 +88,7 @@
 
 - name: Create CA Chain
   ansible.builtin.shell:
-    cmd: cat {{ config.dir.local }}/certs/root.crt {{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt > {{ config.dir.local }}/intermediate/{{ cert.name }}/certs/chain.crt
+    cmd: cat {{ config.dir.local }}/certs/root.crt {{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt > {{ config.dir.local }}/intermediate/{{ cert.name }}/certs/chain.{{ hostvars[inventory_hostname].context }}.crt
     executable: /bin/bash
   changed_when: false
 
@@ -104,7 +104,7 @@
     - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt"
       type: file
       mode: "0644"
-    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/chain.crt"
+    - path: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/chain.{{ hostvars[inventory_hostname].context }}.crt"
       type: file
       mode: "0644"
 

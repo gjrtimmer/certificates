@@ -1,5 +1,10 @@
 # code: language=ansible
 - name: Create Target Directory
+  when:
+    - cert.enabled
+    - cert.target is defined
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([elm.context] | flatten | map('upper') | list)
   ansible.builtin.file:
     path: "{{ elm.dir }}"
     state: directory
@@ -9,7 +14,14 @@
     loop_var: elm
 
 - name: Copy Intermediate CAs
-  when: cert.enabled and (inventory_hostname in elm.hosts or elm.hosts in ['all', 'self'])
+  when:
+    - cert.enabled
+    - cert.target is defined
+    - inventory_hostname in elm.hosts
+      or 'all' in elm.hosts
+      or 'self' in elm.hosts
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([elm.context] | flatten | map('upper') | list)
   ansible.builtin.copy:
     src: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/{{ cert.name }}.crt"
     dest: "{{ elm.dir }}/{{ elm.name }}.crt"
@@ -21,7 +33,10 @@
     loop_var: elm
 
 - name: Copy Intermediate Chain Certificate
-  when: cert.enabled
+  when:
+    - cert.enabled
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([context] | flatten | map('upper') | list)
   ansible.builtin.copy:
     src: "{{ config.dir.local }}/intermediate/{{ cert.name }}/certs/chain.crt"
     dest: "{{ certificate.dir.remote }}/ca/chain_{{ cert.name }}.crt"
@@ -30,7 +45,10 @@
     mode: "0644"
 
 - name: Link Intermediate Certificate
-  when: cert.enabled
+  when:
+    - cert.enabled
+    - (hostvars[inventory_hostname].context | default('') | upper)
+      in ([context] | flatten | map('upper') | list)
   ansible.builtin.file:
     src: "{{ config.dir.remote }}/ca/{{ cert.name }}.crt"
     dest: /usr/local/share/ca-certificates/{{ config.info.organizationName }}_{{ cert.info.commonNameSlug }}.crt
